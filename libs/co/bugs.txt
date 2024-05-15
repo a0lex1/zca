@@ -1,0 +1,24 @@
+****** Bugs known and need to fix ***
+most recent at top
+
+---
+
+Can't catch again. Archive 177.
+5/25/2022
+
+[ ] _test_text_socket_fragmented_with () { // CANT REPRODUCE
+  ...
+  DCHECK(srv_read_history0 == expected_history); //<<< FAIL, srv_read_history0 is EMPTY
+  ...
+
+---
+
+[ ] when testing with --stop-ioc,
+memleak in Session, seems that some RefTrackers not removed
+
+[ ] when ThreadModel::Reset() instead of reconstruct it, DCHECK(IsOnAcceptorStrand())
+
+[ ] test_co_async_dbserver_u --log-sevs=*:info --conflooders=53 --writers=53 --wcm=16 --wsm=18 --wdm=50 --stop-ms=125 --test-repeat=1000000000
+    hang 90% prob because of StopableSessionPark. Should not affect anything.
+    By the way, probably Client bug
+

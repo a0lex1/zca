@@ -1,0 +1,26 @@
+[Optimization]
+  [ ] Hash table cc botid
+
+[NeedTests]
+  [ ] AsyncCoroutine with --ioc-stop
+    [] LATER<<: need sync_cc_client and server to test on
+  [ ] Netshell result corruption
+
+[DontForget]
+  [ ] reftracker monitor don't wanna be in RELEASE BUILD
+  
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+/top down writing/
+
+[interesting preprocessor definitions]
+
+_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+
+
+[debugging]
+
+__CRTDBG_MAP_ALLOC -- memleak detections in WinDbg
+BOOST_ASIO_HANDLER_TRACKING -- redirected to std_out_err.txt
+

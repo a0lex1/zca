@@ -1,0 +1,294 @@
+461.
+FIXED *buffer overflow* in test_proto (string_vprintf sizeof(wchar_t) issue)
+
+460.
+FIXED cmd-exec -n WITH stop produces bug (added class CmdexecSubtask)
+
+459. release1
+
+458.
+ADD zbackfront + Daemonize
+
+456.
+ADD bot-list on frontend + test_zca_cbf_cmd_floodbotlist works
+ADD wrapper around GetParaExecutor
+
+455.
+FIXED tests on linux
+
+438.
+ADDED Frontend [!] [!] [!] [!] [!] [!] [!] [!]
+ADDED test_zca_cbf_cmd...
+ADDED test_zca_cbf_cmd_floodbotlist
+
+437.
+UPDATED `bot-list` cmdline now works through Getopt
+ADDED `bot-list` opts -a -b, -i -e
+ADDED test_zca_basecmd_cb_field_include, test_zca_basecmd_cb_field_exclude
+
+436.
+ADDED salt through opaque data
+
+435.
+FIXED string_from_xxx bad values
+ADDED test_zca_cb_aborted_cmd
+ADDED shell command
+ADDED kill command
+
+434.
+ADDED co/base/process_io_redirector.cpp and test_co_process_io_redirector()
+
+433.
+ADDED echo-input command
+
+432.
+ADDED botlist -w -h  (for max_line_length, max_line_count)
+
+431.
+FIXED NO_RESULT answer for cmd-exec echo-args
+
+430.
+ADDED Ping functionality (test_cc_client_server_zombie_kill)
+ADDED project zunittests (ztests without stress tests)
+CHANGED ConservativeCooldowns to MinimumCooldowns for quicker tests
+
+
+429.
+ADDED RC4 Encryption (SetTrafficEncryptionKeys)
+6:34 PM 2/20/2024
+
+428tmp
+
+427tmp
+ADDED tests test_co_async_capsule* (for exceptions on different phases)
+TODO: remove *tmp archives with their numbers
+
+426.
+ADDED tests for CcClientSession error cases
+REMOVED gTestTcpEndpoint, now tests can run in parallel
+now need to add tests for recov/unrecov exceptions from PrepareToStart and Start phases
+1:22 AM 2/18/2024
+
+425.
+FIXED Hang with nc 5000+Ctrl^C (Was Server, Fixed to ServerWithSessList)
+
+424.
+ADD RefTracker.SetReferencedObject #SharedFromThisRefTrackerIssue [!] [!] [!] [!] [!] [!] [!] [!] [!] [!]
+Now need to debug hang with nc localhost 5000+Ctrl^C
+
+423tmp
+LINUX CRASHES:
+        test_zca --log-sevs=*:debug --num-threads-default=0 --this-thread
+        (may need to run multiple times)
+AND
+        zcapsule --log-sevs=*:debug --num-threads-default=0 --this-thread    + nc localhost 5000+Ctrl^C
+        ("UAFED...")
+
+
+422.
+noticed a bug - zcapsule hangs to exit (by second Ctrl+C) after "nc localhost 10000<2.txt" is run and Ctrl+C-d in another console
+  need DebugConsole to debug this bug
+    working on it <<<<<<<<<<<
+    FIXED: test_zca_test_object
+           test_zca_test_object_unrecov_exception
+           test_zca_test_object_recov_exception
+
+421.
+REMAKE backend netshell to parallel netshell
+
+ADDED scheme.nfo file with cute ASCII drawing
+
+419.
+ADDED namespace modules:: for modules/
+CRASHES in test_zca_dummy
+
+
+418.
+REFACTOR: ZcaTestObject gets new functionality that was in ZcaTestObjectSync
+Hangs in test_zca_basecmd_cb_botlist
+3:17 PM 1/16/2024
+
+417.
+Failing in stresstest_zca_basecmd_cb_cmdexec
+Next task: move netshell clients to ZcaTestObject from ZcaTestObjectSync
+4:39 PM 1/15/2024
+
+416.
+ADDED DispatchCmdTask::ConvertToBackgroundTask
+ADDED co/base/cmdline/getopt_cpp.h/cpp - getopt C++ adoption
+
+415.
+Refactored code that uses netshell. ztests works.
+8:26 PM 1/9/2024
+
+414. [Temp backup]
+Netshell remake (split, etc.) - test_netshell works, but need to refactor the code that uses netshell (so it doesn't built yet)
+5:10 PM 1/9/2024
+
+Renamed AdminSession to BackendAdminSession
+Next task: netshell status code/name/flag external customization
+4:34 PM 1/8/2024
+
+Removed cmd grouping functionality and ztests works on Linux and Windows.
+Next task: back shell -> parallel netshell
+9:45 PM 1/7/2024
+
+[Temp backup] Removed cmd grouping functionality. Compiles, but doesn't work.
+Hang here: *** Running test test_zca_dummy_back_echoargs
+8:57 PM 1/7/2024
+
+ReStructurized code, split back/ag/front to dirs
+1:19 PM 1/5/2024
+
+Removed #DebugFeatures and shitty comments
+12:35 PM 1/5/2024
+
+Investigated, ztests works on Linux and Windows
+Still have 
+   Log(_INFO) << "HellOOOOO FROM HandleExecuteSequencedComYEEEEEEAAAAAAFFffffffffHHHHmand\n";
+  in SeqCmdExecutionTask::HandleExecuteSequencedCommand
+ need more drafting of cmd model
+1:47 PM 12/31/2023
+
+
+Some #DebugFeatures cleaned
+New project ztests
+Works on Linux and Windows, Debug and Release
+Bugs fixed
+Fails in stresstest_zca_basecmd_cb_cmdexec_suicide - need to continue investigation
+6:14 PM 12/30/2023
+
+------------------------------
+
+On windows. Merged. lin_stress_** works on linux.
+
+~~~
+
+samples_zca: /home/user/d/dwinhost/mi/wc/z/libs/co/src/co/async/task_manager.cpp:64: virtual co::async::TaskManager::~TaskManager(): Assertion `bools_.all_io_ended_ || bools_.aborted_stop_cleanuped_' failed.
+
+
+~~~
+
+need to see all places where need to add tss_impl StartThreadsafe
+
+~~~
+
+suck
+
+need to fix add StartThreadsafe to tss impl!
+
+~~~
+
+
+stuck
+ ./samples_zca test_zca_fuzz_case_u  --log-sevs="*:debug" --afloodbl=1,2,3,4 --aorder=serial --ar --astopf=0 --astopm=0  --bhshakef=0 --bhshakem=0 --br=1 --a=0 --b=1 --num-threads-default=1 --pb-stop-delay=0 --stop-delay=10 --stop-ioc=0 --this-thread=0  --test-repeat=99999999   --bstopm=0     --bstopf=1|grep --color=always -e "^" -e task -e Task -e Ag
+
+
+~~~
+
+From now on, use gdb -tui.
+The stuck bug because of TaskManager? :)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Decided to write tests for all shit
+the bug is on [debug only!]
+
+./samples_zca test_zca_fuzz_case_u  --log-sevs="*:debug" --afloodbl=1,2,3,4 --aorder=serial --ar --astopf=0 --astopm=0  --bhshakef=0 --bhshakem=0 --br=1 --a=0 --b=1 --num-threads-default=24 --pb-stop-delay=0 --stop-delay=10 --stop-ioc=0 --this-thread=0  --test-repeat=99999999   --bstopm=0     --bstopf=1
+stuck, segfault
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Or this bug
+./samples_zca test_zca_fuzz_case_u  --log-sevs="*:info" --afloodbl=1,2,3,4 --aorder=serial --ar --astopf=0 --astopm=0  --bhshakef=15 --bhshakem=0 --br=1 --a=0 --b=5 --num-threads-default=1 --pb-stop-delay=0 --stop-delay=100 --stop-ioc=0 --this-thread=0  --test-repeat=99999999   --bstopm=0     --bstopf=1
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now this bug:
+  ./samples_zca test_zca_fuzz_case_u  --log-sevs="*:debug" --a=1 --afloodbl=1,1 --afloodcmd=1,1 --aorder=serial --ar=1 --astopf=0 --astopm=0 --b=1 --bhshakef=15 --bhshakem=0 --br=1 --bstopf=0 --bstopm=0 --num-threads-default=24 --pb-stop-delay=100 --stop-delay=0 --stop-ioc=0 --this-thread=0  |grep --color=always -e "^" -e rt_ -e object
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Listen. Fixed fucking ZCA_CCSERVSESS_FIX1, get their shit knocked. Fuckyou. Backup this, bitch.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+backuping cuz SEEMS FINALLY WORKING linux release tests and stresstests all
+BUT NEED TO REMOVE ZCA_CCSERVSESS_FIX1 <- dumb stub.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+backuping cuz spoiled a bit. before more spoil, need backup.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+>>> ZCA_CCSERVSESS_FIX1
+Now debugging  something wrong with Server. test_cc server crashes too
+Now debugging:
+./stresstest_co_listserver stresstest_co_async_dbserver_u --conflooders=0 --writers=2 --wcm=1 --wsm=1 --wdm=5 --stop-ms=0 --log-sevs="*:debug"
+_dbg_dtored_ uaf
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+lambdas wrapped in strands? i bet no bitch
+objects that don't have Start and RefTracker, objects that doesn't known when i/o ended, no shared_from_this, etc.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests doesnt work NEED to FIX ThreadsafeStopableImpl objects must be SINGLE FIBERED ALWAYS
+fix this shit. then test again.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Debugging stresstest_zca_basecmd_cb_cmdexec*
+NOW: [L1] _dbg_dtored BUGBUGBUG!
+But taskmgr works.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+added test_zca_cb_instantstop_serveronly, test_zca_cb_instantstop_fakebackend, test_zca_cb_instantstop, test_zca_cb_instantstop_stopioc - works in Release
+Now 
+
+Added cmd stats and rts in Release. Doing backup before adding ThreadsafeStopableImpl::ReplaceRefTracker.
+doing backup cuz fixed early io_context exit (HandshakeContinue shit) in cc_server. Not stucking sometimes in fucking Agent.
+doing backup cuz just fixed rtctxhandle in agent and backend 
+
+
+
+
+
+
+
+
+
+[DBG  ] (TID 7fbc3635d040) CcCli 0x55aa54025710 Start
+[DBG  ] (TID 7fbc3635d040) CcCli 0x55aa54025710 #ioended
+
+
+
+
+TODO: _SPOIL_ADMINLOCADDR
+
+LAST TIME:
+^C
+user@user-virtual-machine:~/d/dwinhost/mi/wc/build-z-Desktop-Release/libs/zca/src/test_zca$ ./test_zca test_zca_test_object --test-repeat=99999999
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Now need to disable xlog in Release. <- done
+
+now have bugs <<
+
+known stresstest_zca_basecmd_cb_cmdexec known stresstest_zca_basecmd_cb_cmdexec1
+
+
+[L1] _dbg_dtored BUGBUGBUG!
+1) /home/user/d/dwinhost/mi/wc/z/libs/co/src/co/async/stream_chunk_writer_queue_st.cpp:84: void co::async::StreamChunkWriterQueueST::handle_write_chunk(Errcode): Assertion `IsInsideUnderlyingStrand()' failed.
+Aborted (core dumped)
+
+2) boost::asio::detail::epoll_reactor::start_op
+co::async::TcpStream::AsyncReadSome
+co::async::StreamLineReader::HandleReadMore
+
+-----------------------------------
+
+hatemylifeSeems the hang/stuck bug is fixed. Triplet agent->backend connect error condition fixed in ZcaTestObject[Sync]. <<< oh no, you bitch so badly wrong
+Now need to fix the scary SeqCmd bug.
+

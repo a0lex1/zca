@@ -1,0 +1,26 @@
+#pragma once
+
+#include "netshell/netshell_factory.h"
+#include "co/base/async_coro.h"
+
+namespace netshell {
+namespace sync {
+
+class SyncNsCommandResultWriter: public NsCommandResultWriterBase, public co::AsyncCoroAdaptor<NsCommandResultWriter> {
+public:
+  virtual ~SyncNsCommandResultWriter() = default;
+
+  using AsyncCoro = co::AsyncCoro;
+  using NetshellError = netshell::NetshellError;
+  using NsCmdResult = netshell::NsCmdResult;
+
+  NetshellError WriteCommandResult(const std::string& cmd);
+
+  // Cleanupable::CleanupAbortedStop from NsCommandResultWriterBase
+
+private:
+
+};
+
+}}
+

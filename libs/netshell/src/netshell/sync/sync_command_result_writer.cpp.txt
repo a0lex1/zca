@@ -1,0 +1,7 @@
+#include "netshell/sync/sync_command_result_writer.h"
+
+namespace netshell {
+namespace sync {
+
+}}
+

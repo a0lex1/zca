@@ -1,0 +1,6 @@
+/**/.vs
+/**/*.user
+/**/out
+/**/CMakeSettings.json
+/scripts
+/extra

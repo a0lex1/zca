@@ -1,0 +1,15 @@
+#include "co/net/endpoint.h"
+#include "co/net/asio_endpoint_from_string.h"
+
+namespace co {
+
+bool ConvertValue(const std::string& subj, co::net::TcpEndpoint& addr) {
+  Errcode ec;
+  boost::asio::ip::tcp::endpoint ep;
+  co::net::EndpointFromIpPortStr(ep, subj, ec);
+  addr = co::net::TcpEndpoint(ep);
+  return !ec;
+}
+
+
+}

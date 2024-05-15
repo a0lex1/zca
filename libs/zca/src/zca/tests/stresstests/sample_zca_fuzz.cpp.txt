@@ -1,0 +1,420 @@
+#include "zca/fuzz/case_generator.h"
+#include "zca/fuzz/case_runner.h"
+
+#include "zca/dbg/ct/zca_command_thread.h"
+#include "zca/zca_common_config.h"
+#include "zca/backend.h"
+
+#include "zca/modules/basecmd/back/basecmd_backend_module.h"
+#include "zca/modules/basecmd/ag/basecmd_agent_module.h"
+#include "zca/modules/dummy/dummy_module.h"
+
+#include "zca/test_kit/zca_test_object.h"
+
+#include "proto/test_kit/my_proto/all.h"
+
+#include "co/test_kit/test_tcp_endpoint.h"
+
+#include "co/async/stop_timer.h"
+#include "co/async/tcp_service.h"
+#include "co/async/tcp.h"
+#include "co/async/event.h"
+#include "co/async/capsule/capsule_builder.h"
+#include "co/async/configs/thread_model_config_from_dict.h"
+#include "co/async/configs/thread_model_config_to_dict.h"
+#include "co/async/loop_object_set.h"
+#include "co/async/test_kit/test_object_with_default_capsule.h"
+#include "co/async/service.h"
+
+#include "co/base/cmdline/keyed_cmdline.h"
+#include "co/base/config.h"
+#include "co/base/cmdline/keyed_cmdline.h"
+#include "co/base/tests.h"
+
+#include "co/xlog/xlog.h"
+
+#include <boost/thread/mutex.hpp>
+
+using namespace std;
+using namespace co;
+using namespace co::cmdline;
+using namespace co::async;
+using namespace co::async::capsule;
+using namespace co::async::configs;
+using namespace co::async::test_kit;
+using namespace co::cmdline;
+using namespace boost::posix_time;
+using co::net::Endpoint;
+using co::net::TcpEndpoint;
+
+using namespace fuzz;
+
+namespace {
+  static const size_t kNoShift = -1;
+  static const bool kTestEq = true;
+
+  void TestTCG(TestInfo& ti, size_t shift_iter = kNoShift, bool test_equality = false) {
+    size_t max_iters = -1;
+    OverrideFromDict<string, string, size_t>(ti.opts_dict, "max-iters", max_iters, ConsumeAction::kDontConsume);
+
+    CaseGenerator gen;
+    size_t cur_case = 0;
+    if (shift_iter != kNoShift) {
+      gen.RollForward(shift_iter);
+      cur_case += shift_iter;
+    }
+    Case prev_tc;
+    while (!gen.End()) {
+      if (max_iters == 0) {
+        syslog(_INFO) << "MAX_ITERS, exiting\n";
+        break;
+      }
+      max_iters -= 1;
+
+      Case tc;
+      gen.GetNextCase(tc);
+
+      KeyedCmdLine<char> kcl("", tc.ToDict(), {});
+      syslog(_INFO) << "CASE # " << cur_case << "\n";
+      syslog(_INFO) << kcl.Textualize(false) << "\n";
+      if (cur_case > 0) {
+        // if not first iter, ensure change is changed
+        if (tc == prev_tc) {
+          syslog(_FATAL) << "**************** NOT CHANGED. Here it is:\n";
+          syslog(_FATAL) << tc.ToKeyedCmdLine().Textualize() << "\n";
+          DCHECK(!"case not changed");
+        }
+      }
+      syslog(_INFO) << "\n";
+
+      if (test_equality) {
+        // Parse back what we've textualized
+        string texted("a "+kcl.Textualize(false));
+        KeyedCmdLine<char> kcl2(texted.c_str());
+
+        Case tc2;
+        tc2.FromDict(kcl2.GetNamedArgs(), ConsumeAction::kConsume);
+
+        if (tc != tc2) {
+          syslog(_FATAL) << "************** CASES NOT EQ\n";
+          syslog(_FATAL) << "tc  : " << texted << "\n";
+          syslog(_FATAL) << "tc2 : " << tc2.ToKeyedCmdLine().Textualize() << "\n";
+          DCHECK(!"Cases not EQ !");
+        }
+      }
+
+      prev_tc = tc;
+      cur_case += 1;
+    }
+  }
+}
+
+void test_zca_fuzz_test_case_generator(TestInfo& ti) {
+  //TestTCG(ti, kNoShift);
+  TestTCG(ti, kNoShift, kTestEq);
+}
+
+void test_zca_fuzz_test_case_generator_shift(TestInfo& ti) {
+  TestTCG(ti, 0);
+  TestTCG(ti, 1);
+  TestTCG(ti, 3);
+  TestTCG(ti, 99);
+
+  TestTCG(ti, 0, kTestEq);
+  TestTCG(ti, 1, kTestEq);
+  TestTCG(ti, 2, kTestEq);
+  TestTCG(ti, 99, kTestEq);
+}
+
+// Usage: stresstest_zca_fuzz_case [--iter=123] | [--a-army-count=... ...]
+void stresstest_zca_fuzz_case(TestInfo& ti) {
+  size_t n_iter;
+  bool was_found = false;
+  OverrideFromDict<string, string, size_t>(ti.opts_dict, "iter",
+                                           n_iter, ConsumeAction::kDontConsume,
+                                           Necessity::kOptional, &was_found);
+  Case cas;
+  if (was_found) {
+    CaseGenerator gen;
+    gen.RollForward(n_iter);
+    gen.GetNextCase(cas);
+
+    syslog(_INFO) << "Running case for ITER " << n_iter << "=>\n"
+      << cas.ToKeyedCmdLine().Textualize() << "\n";
+  }
+  else {
+    cas.FromDict(ti.opts_dict, ConsumeAction::kDontConsume);
+    n_iter = 0;
+
+    syslog(_INFO) << "Running case constructed from cmdline=>\n"
+      << cas.ToKeyedCmdLine().Textualize() << "\n";
+  }
+  fuzz::CaseRunner cr(cas);
+
+  cr.RunCase();
+
+  syslog(_INFO) << "Case #" << n_iter << " done running\n";
+}
+
+// --a=5                    // --
+// --ar=1 --ar=0
+// --astopf=100
+// --astopm=33
+// --b=5
+// --br=1 --br=0
+// --bstopf=0
+// --bstopm=77
+// 
+// --bhshakef=0
+// --bhshakem=13
+// 
+// --afloodbl=2,2,66,13      // count, distance, intervalf=0, intervalm=13
+// --afloodcmd=1,1,50
+// --afloodcmdw=1,1
+// --afloodcmdww=2,6
+// --afloodmkjob=2,2
+// --afloodsuicide
+// --afloodvlan
+//
+// --aorder=parallel  --aorder=serial
+//
+
+// --b=1 --br=0 --bstopf=-1 --astopm=<ANY> bhshakef=0 bshakem=13
+
+void stresstest_zca_fuzz(TestInfo& ti) {
+  size_t new_thread_count = ThreadModelConfig().num_threads_default;
+  bool override_thread_count;
+  OverrideFromDict<string, string, size_t>(ti.opts_dict, "threads", new_thread_count,
+                                           ConsumeAction::kConsume, Necessity::kOptional,
+                                           &override_thread_count);
+  CaseGenerator gen;
+  uint64_t cur_case = 0;
+  while (!gen.End()) {
+    Case cas;
+    gen.GetNextCase(cas);
+
+    if (override_thread_count) {
+      cas.tm_conf.num_threads_default = new_thread_count;
+    }
+
+    syslog(_INFO) << "----------[stresstest_zca_fuzz]----------\n"
+       << "case#" << cur_case << " (text:)\n"
+      << cas.ToKeyedCmdLine().Textualize() << "\n";
+
+    CaseRunner cr(cas);
+    cr.DisallowAbortedStop();
+    cr.RunCase();
+
+    cur_case += 1;
+  }
+}
+
+void test_zca_fuzz_cmdexec_botlist(TestInfo&) {
+
+  // win - b=170 - no hang, 175 - hang
+  Case cas;
+  StringMap d({
+    {"a", "1" },
+    {"afloodbl", "3,2"},
+    {"afloodcmd", "3,2"},
+    {"aorder", "serial"},
+    {"ar", "0"},
+    {"astopf", "0"},
+    {"astopm", "37"},
+    {"b", "100"},
+    {"bhshakef", "0"},
+    {"bhshakem", "7"},
+    {"br", "0"},
+    {"bstopf", "0"},
+    {"bstopm", "37"},
+    {"num-threads-default", "1"},
+    {"stop-ioc", "0"},
+    {"stop-delay", "1111"},
+    {"this-thread","0"}
+    });
+  cas.FromDict(d, ConsumeAction::kDontConsume);
+
+  fuzz::CaseRunner* cur_runner{ nullptr };
+
+  syslog(_INFO) << "FUZZING bot-list + cmd-exec =>\n" << cas.ToKeyedCmdLine().Textualize() << "\n";
+  fuzz::CaseRunner cr(cas);
+
+  cur_runner = &cr;
+
+  cr.RunCase();
+}
+
+void test_zca_fuzz_flood_opts(TestInfo&) {
+  size_t niter = 0;
+  size_t ndone = 0;
+  size_t _neediter = 5;
+  for (uint32_t c : { 0, 1, 2, 7, 100000}) {
+    for (uint32_t d : { 0, 3, 7,  90000}) {
+      for (uint32_t intf : { 0, 1, 7, 13, 1300}) {
+        for (uint32_t intm : { 0, 13, 21, 71, 1800000}) {
+          if (niter >= _neediter) {
+            FloodOpts fo{ c,d,intf,intm };
+            string s_fo = fo.ToString();
+            FloodOpts fo2;
+            DCHECK(fo2.FromString(s_fo));
+
+
+            syslog(_INFO) << "iTeR " << niter << ", [ ] fo:\n" << s_fo << "\n"
+              << "[ ] fo2:\n" << fo2.ToString() << "\n\n";
+
+            DCHECK(fo == fo2);
+
+            ndone += 1;
+          }
+          niter += 1;
+        }
+      }
+    }
+  }
+}
+
+// This tests co through zca
+void test_co_async_loop_object_set(TestInfo& ti) {
+  for (size_t delay : { 0, 1, 17, 333}) {
+    TestObjectWithDefaultCapsule(ti,
+                                 [=](ThreadModel& tm) {
+      auto oset = make_unique<LoopObjectSet>(make_shared<Strand>(tm.DefIOC()));
+
+      BackendConfig back_conf(co::test_kit::gTestTcpEndpoint,
+                              co::test_kit::gTestTcpEndpoint2);
+      auto backend = make_shared<Backend>(tm, back_conf, BackendSeparationConfig());
+      auto stoptimer = make_shared<StopTimer>(tm.DefIOC(),
+                                               make_shared<Strand>(tm.DefIOC()),
+                                               *backend.get(),
+                                               milliseconds(delay));
+      oset->AddObject(backend);
+      oset->AddObject(stoptimer);
+      return oset;
+                                 });
+    }
+}
+
+void test_zca_fuzz_somexxx0(TestInfo& ti) {
+
+  TestTCG(ti, 5184, kTestEq);
+
+}
+
+
+void test_cas_admin_soldier_opts(TestInfo&) {
+  Case cas;
+
+  // must be disabled by default
+  DCHECK(!cas.admin_soldier_opts.snip_bits_.enable_afloodbl);
+  DCHECK(!cas.admin_soldier_opts.snip_bits_.enable_afloodcmd);
+
+  StringMap sm;
+  
+  sm = {
+    { {"afloodcmd"}, {"1,2,3,4"}},
+    { {""}, {""}}
+  };
+  cas.FromDict(sm, ConsumeAction::kDontConsume);
+  DCHECK(!cas.admin_soldier_opts.snip_bits_.enable_afloodbl);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodcmd);
+
+  sm = {
+    { {"afloodbl"}, {"1,2,3,4"}},
+    { {"afloodcmd"}, {"5,6,1,2"}}
+  };
+  cas.FromDict(sm, ConsumeAction::kDontConsume);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodbl);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodcmd);
+
+  sm = {
+    { {"afloodbl"}, {"1,2,3,4"}},
+  };
+  cas.FromDict(sm, ConsumeAction::kDontConsume);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodbl);
+  DCHECK(!cas.admin_soldier_opts.snip_bits_.enable_afloodcmd);
+
+  // test consume
+  sm = {
+  { {"afloodbl"}, {"1,2,3,4"}},
+  { {"afloodcmd"}, {"1,2,3,4"}},
+  };
+  cas.FromDict(sm, ConsumeAction::kConsume);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodbl);
+  DCHECK(cas.admin_soldier_opts.snip_bits_.enable_afloodcmd);
+  DCHECK(sm.size() == 0);
+}
+
+void test_bots_simp(TestInfo&) {
+  Case cas;
+  CaseRunner runner(cas);
+
+  cas.bot_army_conf.count_ = 1;
+  cas.bot_army_conf.restart_ = true;
+  cas.bot_soldier_opts.hshake_postpone_delay_f_ = 100;
+  cas.bot_army_conf.stop_delay_f_ = 290;
+  cas.tc_opts.stop_delay = 300;
+  cas.tc_opts.stop_ioc = true;
+  runner.RunCase();
+}
+
+void test_admins_simp(TestInfo& ti) {
+  Case cas;
+  CaseRunner runner(cas);
+
+  // 
+  cas.bot_army_conf.count_ = 0;
+  cas.bot_army_conf.restart_ = false;
+  cas.bot_army_conf.stop_delay_f_ = 5000;
+
+  cas.admin_army_conf.count_ = 5;
+  cas.admin_soldier_opts.snip_bits_.enable_afloodbl = 1;
+  cas.admin_soldier_opts.snip_bits_.enable_afloodcmd = 1;
+  cas.admin_soldier_opts.afloodbl_.portion = 1;
+  cas.admin_soldier_opts.afloodbl_.step = 1;
+  cas.admin_soldier_opts.afloodbl_.intervalf = 1;
+  cas.admin_soldier_opts.afloodbl_.intervalm = 17;
+  cas.admin_soldier_opts.afloodcmd_.portion = 1;
+  cas.admin_soldier_opts.afloodcmd_.step = 2;
+  cas.admin_soldier_opts.afloodcmd_.intervalf = 23;
+  cas.admin_soldier_opts.afloodcmd_.intervalm = 7;
+  cas.tc_opts.stop_delay = 30;
+  cas.tc_opts.stop_ioc = false;
+  cas.tm_conf = ThreadModelConfigFromDict(ThreadModelConfig(),
+                                          ti.opts_dict,
+                                          ConsumeAction::kDontConsume);
+  runner.RunCase();
+}
+
+void test_zca_fuzz_case_u(TestInfo& ti) {
+  Case cas;
+  cas.FromDict(ti.opts_dict, ConsumeAction::kDontConsume);
+
+  syslog(_INFO) << "* YOU ENTERED CASE:*\n";
+  KeyedCmdLine<char> kcl("", cas.ToDict(), {});
+  syslog(_INFO) << kcl.Textualize() << "\n";
+
+  CaseRunner runner(cas);
+
+  runner.RunCase();
+
+  //printf("test_zca_fuzz_case_u : Leave\n");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

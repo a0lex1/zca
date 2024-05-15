@@ -1,0 +1,13 @@
+*.build.user*
+/**/.vs/
+/**/__pycache__/
+/**/*.ipch
+/**/*.sdf
+/**/*.suo
+/**/*.opensdf
+/**/*.opendb
+/**/*.user
+/**/*.idb
+/**/*.pch
+/**/Debug/
+/**/Release/
